@@ -43,7 +43,103 @@ function renderResults(){$('results').innerHTML=allResults.map((r,i)=>`<div clas
 function slopeColor(grade){if(grade<0)return '#202124';if(grade<2.5)return '#2375df';if(grade<4.5)return '#168b45';if(grade<6.5)return '#ec4899';if(grade<10)return '#e53935';return '#7c3aed'}
 function addSlopeColoredRoute(coords){const usable=coords.length>1&&coords.every(c=>c.length>=3&&Number.isFinite(Number(c[2])));if(!usable){const plain=L.polyline(coords.map(c=>[c[1],c[0]]),{color:'#16845b',weight:5,opacity:.9}).addTo(routeLayer);$('slopeInfo').textContent='Le moteur n’a pas fourni une altitude exploitable pour chaque point : le tracé reste vert, sans classification de pente fiable.';return plain}let total=0;for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i],dist=hav([a[0],a[1]],[b[0],b[1]])*1000,delta=Number(b[2])-Number(a[2]);if(dist<0.5)continue;const grade=delta/dist*100,absGrade=Math.abs(grade),kind=grade < -0.3?'Descente':grade>0.3?'Montée':'Plat';const distLabel=dist>=1000?(dist/1000).toFixed(2)+' km':Math.round(dist)+' m';const popup=`<div style="min-width:155px"><strong style="font-size:15px">${grade>0?'+':''}${grade.toFixed(1)} %</strong><br><span>${kind} · ${distLabel}</span><br><span>Altitude : ${Math.round(Number(a[2]))} → ${Math.round(Number(b[2]))} m</span><br><span>Dénivelé du segment : ${delta>0?'+':''}${delta.toFixed(1)} m</span><div style="font-size:10px;color:#687b8b;margin-top:5px">Pente estimée entre deux points de la trace</div></div>`;L.polyline([[a[1],a[0]],[b[1],b[0]]],{color:slopeColor(grade),weight:7,opacity:.98,lineCap:'round'}).bindPopup(popup).addTo(routeLayer);total++}$('slopeInfo').textContent=total?'Touchez une portion colorée de la trace pour afficher son pourcentage de pente, sa longueur et son dénivelé. Les segments courts peuvent être sensibles au bruit altimétrique.':'Altitude insuffisante pour colorer les segments.';return L.polyline(coords.map(c=>[c[1],c[0]]),{color:'#ffffff',weight:1,opacity:.2,interactive:false}).addTo(routeLayer)}
 function selectRoute(i){const r=allResults[i];if(!r)return;selectedGeo=r.geo;selectedProps=r.props;document.querySelectorAll('.result').forEach((el,j)=>el.classList.toggle('selected',j===i));routeLayer.clearLayers();const layer=addSlopeColoredRoute(getCoords(r.geo));startMarker=L.marker([r.start.lat,r.start.lon]).addTo(routeLayer).bindPopup('Départ / arrivée');map.fitBounds(layer.getBounds().pad(.12));$('mapLabel').textContent=r.km.toFixed(1)+' km';$('gpxBtn').disabled=false;$('openMapBtn').disabled=false;renderVillages(r);}
-async function renderVillages(r){const coords=r.coords;let points=[];const step=Math.max(1,Math.floor(coords.length/6));for(let i=0;i<coords.length;i+=step)points.push({coord:coords[i],km:lengthOf(coords.slice(0,i+1))});if(points.length===0)points=[{coord:coords[0],km:0}];points=points.slice(0,7);$('villages').innerHTML=points.map((p,i)=>`<div class="village"><span class="num">${i===0?'D':i}</span><span>${i===0?'Départ / arrivée':`Point de passage ${i}`}<br><span class="small">Position sur la trace — le nom exact du village reste à confirmer</span></span><span class="distance">${p.km.toFixed(1)} km</span></div>`).join('');}
+
+async function renderVillages(r) {
+  const coords = r.coords;
+  const container = $('villages');
+
+  if (!coords || coords.length === 0) {
+    container.innerHTML = '<p>Aucun point de parcours disponible.</p>';
+    return;
+  }
+
+  const count = Math.min(7, coords.length);
+  const points = [];
+
+  for (let j = 0; j < count; j++) {
+    const i = count === 1
+      ? 0
+      : Math.round(j * (coords.length - 1) / (count - 1));
+
+    points.push({
+      coord: coords[i],
+      km: lengthOf(coords.slice(0, i + 1))
+    });
+  }
+
+  container.innerHTML = points.map((p, i) => `
+    <div class="village">
+      <span class="num">${i === 0 ? 'D' : i}</span>
+      <span>
+        ${i === 0 ? 'Recherche du départ' : 'Recherche du lieu...'}
+        <br>
+        <span class="small">Identification du lieu en cours</span>
+      </span>
+      <span class="distance">${p.km.toFixed(1)} km</span>
+    </div>
+  `).join('');
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    let place = '';
+
+    try {
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      }
+
+      const lat = p.coord[0];
+      const lon = p.coord[1];
+
+      const url =
+        'https://nominatim.openstreetmap.org/reverse' +
+        '?format=jsonv2&addressdetails=1&zoom=10' +
+        '&accept-language=fr' +
+        '&lat=' + encodeURIComponent(lat) +
+        '&lon=' + encodeURIComponent(lon);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Recherche du lieu indisponible');
+      }
+
+      const data = await response.json();
+      const a = data.address || {};
+
+      place =
+        a.village ||
+        a.town ||
+        a.city ||
+        a.hamlet ||
+        a.municipality ||
+        a.suburb ||
+        '';
+
+      if (!place && a.county) {
+        place = 'Secteur de ' + a.county;
+      }
+    } catch (error) {
+      place = '';
+    }
+
+    const name = place || 'Lieu non identifié';
+    const label = i === 0
+      ? 'Départ : ' + name
+      : i === points.length - 1
+        ? 'Arrivée : ' + name
+        : name;
+
+    const item = container.children[i];
+
+    if (item) {
+      item.children[1].innerHTML =
+        label +
+        '<br><span class="small">Localité estimée sur la trace</span>';
+    }
+  }
+}
+
 function exportGPX(){if(!selectedGeo)return;const coords=getCoords(selectedGeo);const pts=coords.map(c=>`<trkpt lat="${c[1]}" lon="${c[0]}">${c.length>2?`<ele>${c[2]}</ele>`:''}</trkpt>`).join('');const gpx=`<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Normandie Vélo" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Normandie Vélo — boucle calculée</name></metadata><trk><name>Normandie Vélo</name><trkseg>${pts}</trkseg></trk></gpx>`;const blob=new Blob([gpx],{type:'application/gpx+xml'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='normandie-velo-boucle.gpx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 function openMap(){if(!selectedGeo)return;const layer=L.geoJSON(selectedGeo);const bounds=layer.getBounds();if(bounds.isValid()){map.invalidateSize(true);map.fitBounds(bounds.pad(.12));$('mapLabel').textContent='Trace affichée · '+lengthOf(getCoords(selectedGeo)).toFixed(1)+' km';$('map').scrollIntoView({behavior:'smooth',block:'center'});toast('La trace calculée est affichée sur la carte. Pour conserver exactement ce tracé dans une autre application, utilise Exporter GPX.')}}
 $('search').addEventListener('click',search);$('gpxBtn').addEventListener('click',exportGPX);$('openMapBtn').addEventListener('click',openMap);window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});$('installBtn').addEventListener('click',async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null}else if(/iphone|ipad|ipod/i.test(navigator.userAgent)){toast('Dans Safari : Partager → Sur l’écran d’accueil.')}else{toast('Dans Chrome : menu ⋮ → Ajouter à l’écran d’accueil ou Installer l’application.')}});if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(console.warn);initMap();setTimeout(()=>map.invalidateSize(),300);
