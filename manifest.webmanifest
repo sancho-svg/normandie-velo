@@ -1,0 +1,14 @@
+{
+  "name": "Normandie Vélo",
+  "short_name": "Normandie Vélo",
+  "description": "Planifie des boucles cyclistes en Normandie selon la distance et le dénivelé positif.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f6f8",
+  "theme_color": "#102a43",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

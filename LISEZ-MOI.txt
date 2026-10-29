@@ -1,0 +1,36 @@
+NORMANDIE VÉLO — prototype web installable (PWA)
+
+FICHIERS
+- index.html : application
+- manifest.webmanifest : métadonnées d'installation
+- sw.js : cache de base pour la coque de l'application
+- icon.svg : icône
+
+IMPORTANT
+Pour proposer « Installer » / « Ajouter à l'écran d'accueil », hébergez ces fichiers à une adresse HTTPS. Un simple fichier HTML ouvert depuis Téléchargements ne suffit généralement pas pour installer une PWA.
+
+TEST LOCAL (ordinateur avec Python installé)
+Depuis ce dossier, lancez : python -m http.server 8080
+Puis ouvrez http://localhost:8080 dans un navigateur. Pour le téléphone, utilisez un hébergement HTTPS.
+
+FONCTIONNEMENT
+- Géocodage : Nominatim / OpenStreetMap
+- Calcul de trace : service web BRouter, profil trekking ou fastbike
+- Carte : Leaflet et tuiles OpenStreetMap
+- Export : GPX de la trace calculée
+
+LIMITES DU PROTOTYPE
+- Le générateur essaie plusieurs boucles par points de passage; il ne garantit pas une solution optimale ni la satisfaction exacte du D+.
+- La liste des points de passage est échantillonnée sur la trace et n'est pas encore une liste certifiée de communes traversées.
+- Les services publics peuvent être limités, indisponibles ou modifier leurs règles. Pour un déploiement durable, prévoir un service de routage hébergé ou une solution contractuelle, attribution des données et gestion des limites de requêtes.
+- Toujours vérifier la trace et les routes avant de rouler.
+
+
+NOUVEAUTÉ — COULEURS SELON LA PENTE
+- Bleu : 0 à 2 % (plat / faible pente)
+- Vert : environ 3 à 4 %
+- Rose : environ 5 à 6 %
+- Rouge : environ 7 à 9 %
+- Violet : 10 % et plus
+- Noir : descente (pente négative)
+Les couleurs reposent sur les altitudes renvoyées par le moteur. Si les altitudes sont absentes, la carte indique clairement que la classification n'est pas disponible.
