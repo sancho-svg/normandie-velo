@@ -51,6 +51,8 @@ async function renderVillages(r) {
   
 
 async function renderVillages(r) {
+
+async function renderVillages(r) {
   const coords = r.coords;
   const container = $('villages');
 
@@ -131,138 +133,6 @@ async function renderVillages(r) {
   }
 }
 
-
-  container.innerHTML = points.map((p, i) => `
-    <div class="village">
-      <span class="num">${i === 0 ? 'D' : i}</span>
-      <span>
-        Recherche du lieu...
-        <br>
-        <span class="small">Identification en cours</span>
-      </span>
-      <span class="distance">${p.km.toFixed(1)} km</span>
-    </div>
-  `).join('');
-
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    let place = '';
-
-    try {
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1100));
-      }
-
-      const lat = p.coord[0];
-      const lon = p.coord[1];
-
-      const url =
-        'https://nominatim.openstreetmap.org/reverse' +
-        '?format=jsonv2&addressdetails=1&zoom=10' +
-        '&accept-language=fr' +
-        '&lat=' + encodeURIComponent(lat) +
-        '&lon=' + encodeURIComponent(lon);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Recherche indisponible');
-      }
-
-      const data = await response.json();
-      const a = data.address || {};
-
-      place =
-        a.village ||
-        a.town ||
-        a.city ||
-        a.hamlet ||
-        a.municipality ||
-        a.suburb ||
-        '';
-
-      if (!place && a.county) {
-        place = 'Secteur de ' + a.county;
-      }
-    } catch (error) {
-      place = '';
-    }
-
-    const name = place || 'Lieu non identifié';
-
-    let label = name;
-    if (i === 0) label = 'Départ : ' + name;
-    if (i === points.length - 1) label = 'Arrivée : ' + name;
-
-    const item = container.children[i];
-
-    if (item) {
-      item.children[1].innerHTML =
-        label +
-        '<br><span class="small">Localité estimée sur la trace</span>';
-    }
-  }
-}
-
-async function renderVillages(r) {
-  const coords = r.coords;
-  const container = $('villages');
-
-  if (!coords || coords.length === 0) {
-    container.innerHTML = '<p>Aucun point de parcours disponible.</p>';
-    return;
-  }
-
-  const count = Math.min(7, coords.length);
-  const points = [];
-
-  for (let j = 0; j < count; j++) {
-    const i = count === 1
-      ? 0
-      : Math.round(j * (coords.length - 1) / (count - 1));
-
-    points.push({
-      coord: coords[i],
-      km: lengthOf(coords.slice(0, i + 1))
-    });
-  }
-
-  container.innerHTML = points.map((p, i) => `
-    <div class="village">
-      <span class="num">${i === 0 ? 'D' : i}</span>
-      <span>
-        ${i === 0 ? 'Recherche du départ' : 'Recherche du lieu...'}
-        <br>
-        <span class="small">Identification du lieu en cours</span>
-      </span>
-      <span class="distance">${p.km.toFixed(1)} km</span>
-    </div>
-  `).join('');
-
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    let place = '';
-
-    try {
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1100));
-      }
-
-      const lat = p.coord[0];
-      const lon = p.coord[1];
-
-      const url =
-        'https://nominatim.openstreetmap.org/reverse' +
-        '?format=jsonv2&addressdetails=1&zoom=10' +
-        '&accept-language=fr' +
-        '&lat=' + encodeURIComponent(lat) +
-        '&lon=' + encodeURIComponent(lon);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Recherche du lieu indisponible');
-      }
 
       const data = await response.json();
       const a = data.address || {};
